@@ -45,4 +45,41 @@ router.get('/oa/messegsAll', async (ctx, next) => {
     })
 })
 
+//添加首页滚屏通知
+router.post('/oa/addnotice',async (ctx,next)=>{
+    let data = Utils.filter(ctx.request.body, ['msg']);
+    let res = Utils.formatData(data, [
+        {key: 'msg', type: 'string'}
+    ]);
+    if (!res) return ctx.body = Tips[1007];
+    let {msg = '', create_time = ''} = data;
+    create_time = Utils.formatCurrentTime(create_time);
+    let sql = `INSERT INTO t_notice(msg,create_time) VALUES(?,?)`,
+        value = [msg, create_time];
+    await db.query(sql, value).then(res => {
+          ctx.body = {
+              ...Tips[0]
+          }
+      }).catch(() => {
+          ctx.body = Tips[1002];
+      })
+});
+//查询首页滚屏通知
+router.get('/oa/noticeInfo', async (ctx, next) => {
+    await db.query('SELECT * FROM t_notice').then(res => {
+        if (res.length > 0) {
+            ctx.body = {
+                ...Tips[0],
+                rows: res
+            };
+        } else {
+            console.log(res)
+            ctx.body = Tips[1003];
+        }
+    }).catch(() => {
+        console.log('1002',res)
+        ctx.body = Tips[1002];
+    })
+})
+
 module.exports = router;

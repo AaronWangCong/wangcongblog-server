@@ -6,23 +6,22 @@ const fs = require('fs');
 const asyncBusboy = require('async-busboy');
 //创建一篇博客，必须登录
 router.post('/oa/user/addBlog', async (ctx, next) => {
-    let data = Utils.filter(ctx.request.body, ['title', 'content', 'submit', 'category_id', 'create_time'])
+    let data = Utils.filter(ctx.request.body, ['title', 'content', 'submit', 'category', 'create_time'])
     let res = Utils.formatData(data, [
         {key: 'title', type: 'string'},
         {key: 'content', type: 'string'},
         {key: 'submit', type: 'string'},
-        {key: 'category_id', type: 'number'}
+        {key: 'category', type: 'string'}
     ]);
     if (! res) return ctx.body = Tips[1007];
-    let {title = '无标题', content = '', category_id = '', submit = '', create_time = ''} = data;
+    let {title = '无标题', content = '', category = '', submit = '', create_time = ''} = data;
     create_time = Utils.formatCurrentTime(create_time);
-    let sql = `INSERT INTO t_article(title,content,submit,create_time,category_id) VALUES (?,?,?,?,?)`,
-        value = [title, content, submit, create_time, category_id];
+    let sql = `INSERT INTO t_article(title,content,submit,create_time,category) VALUES (?,?,?,?,?)`,
+        value = [title, content, submit, create_time, category];
     await db.query(sql, value).then(async res => {
-        let {insertId: id} = res;
         ctx.body = {
             ...Tips[0],
-            data: {id}
+            flag:true
         }
         
     }).catch(e => {
@@ -30,6 +29,27 @@ router.post('/oa/user/addBlog', async (ctx, next) => {
         ctx.body = Tips[1002];
     });
     
+});
+
+//查看博客所有tag标签
+router.post('/oa/blog', async (ctx, next) => {
+    let data = ctx.params;
+    let res = Utils.formatData(data, [
+        {key: 'category', type: 'string'}
+    ]);
+    if (! res) return ctx.body = Tips[1007];
+    let {category} = data;
+    let sql = `SELECT * from t_article where category=${category}`
+    // let sql = `SELECT * FROM  t_article WHERE title=${title} OR category=${category} OR tag=${tag}`;
+    await db.query(sql).then(res => {
+        ctx.body = {
+            ...Tips[0],
+            rows: res
+        }
+        console.log(res)
+    }).catch(e => {
+        ctx.body = Tips[1002];
+    })
 });
 
 //修改博客
@@ -178,6 +198,86 @@ router.post('/oa/user/recognizeFile', async (ctx, next) => {
     }
     
     
+});
+
+
+//创建一篇文章
+router.post('/oa/addArticle', async (ctx, next) => {
+    let data = Utils.filter(ctx.request.body, ['title', 'category', 'summary', 'content'])
+    let res = Utils.formatData(data, [
+        {key: 'title', type: 'string'},
+        {key: 'category', type: 'string'},
+        {key: 'summary', type: 'string'},
+        {key: 'content', type: 'string'}
+    ]);
+    if (! res) return ctx.body = Tips[1007];
+    let {title = '无标题', category = '', summary = '', content = '', create_time = ''} = data;
+    create_time = Utils.formatCurrentTime(create_time);
+    let sql = `INSERT INTO t_article(title,category,summary,content,create_time) VALUES (?,?,?,?,?)`,
+        value = [title, category, summary, content, create_time];
+    await db.query(sql, value).then(async res => {
+        ctx.body = {
+            ...Tips[0],
+            flag:true
+        }
+    }).catch(e => {
+        ctx.body = Tips[1002];
+    });
+});
+
+//查询文章列表
+router.post('/oa/articleList', async (ctx, next) => {
+    let data = Utils.filter(ctx.request.body, ['category'])
+    let res = Utils.formatData(data, [
+        {key: 'category', type: 'string'}
+    ]);
+    let sql = ``;
+    let {category} = data;
+    if (! res || ! category) {
+        sql = `SELECT * FROM t_article`;
+    } else {
+        sql = `SELECT * FROM t_article WHERE category=${JSON.stringify(category)}`;
+    }
+    await db.query(sql).then(res => {
+        if (res.length > 0) {
+            ctx.body = {
+                ...Tips[0],
+                flag:true,
+                rows: res
+            };
+        } else {
+            ctx.body = {
+                ...Tips[1003],
+                flag:false,
+                rows: []
+            }
+        }
+    }).catch(() => {
+        ctx.body = Tips[1002];
+    })
+})
+
+//查询文章详情
+router.get('/oa/articleList/:id', async (ctx, next) => {
+    let data = ctx.params;
+    let res = Utils.formatData(data, [
+        {key: 'id', type: 'number'}
+    ]);
+    if (! res) return ctx.body = Tips[1007];
+    let {id} = data;
+    id = parseInt(id);
+    let sql = `SELECT * FROM t_article WHERE id=${id}`;
+    await db.query(sql).then(res => {
+        let detail = res[0] || [];
+        if(detail){
+            ctx.body = {...Tips[0],obj:detail}
+            rows: []
+        }else{
+            ctx.body = Tips[1003]
+        }
+    }).catch(e => {
+        ctx.body = Tips[1002];
+    })
 });
 
 module.exports = router;
