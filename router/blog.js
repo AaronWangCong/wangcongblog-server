@@ -200,21 +200,31 @@ router.post('/oa/user/recognizeFile', async (ctx, next) => {
     
 });
 
-
-//创建一篇文章
-router.post('/oa/addArticle', async (ctx, next) => {
-    let data = Utils.filter(ctx.request.body, ['title', 'category', 'summary', 'content'])
+//添加修改一篇文章
+router.post('/oa/modifyDoc', async (ctx, next) => {
+    let data = Utils.filter(ctx.request.body, ['title', 'category', 'summary', 'content', 'mdContent', 'id']),
+        {uid} = ctx.state  || {};
     let res = Utils.formatData(data, [
         {key: 'title', type: 'string'},
         {key: 'category', type: 'string'},
         {key: 'summary', type: 'string'},
-        {key: 'content', type: 'string'}
+        {key: 'content', type: 'string'},
+        {key: 'mdContent', type: 'string'},
+        {key: 'id', type: 'number'}
     ]);
     if (! res) return ctx.body = Tips[1007];
-    let {title = '无标题', category = '', summary = '', content = '', create_time = ''} = data;
+    let {title, category, summary, content, mdContent, id, create_time = ''} = data;
     create_time = Utils.formatCurrentTime(create_time);
-    let sql = `INSERT INTO t_article(title,category,summary,content,create_time) VALUES (?,?,?,?,?)`,
-        value = [title, category, summary, content, create_time];
+    let sql = ``,
+        value = []
+    if (id) {
+        sql = `UPDATE t_article set title=?,category=?,summary=?,content=?,mdContent=?,create_time=? WHERE id=?;`;
+        value = [title, category, summary, content, mdContent, create_time, id];
+    } else {
+        sql = `INSERT INTO t_article(title,category,summary,content,mdContent,create_time) VALUES (?,?,?,?,?,?)`;
+        value = [title, category, summary, content, mdContent, create_time];
+    }
+        
     await db.query(sql, value).then(async res => {
         ctx.body = {
             ...Tips[0],
@@ -222,7 +232,8 @@ router.post('/oa/addArticle', async (ctx, next) => {
         }
     }).catch(e => {
         ctx.body = Tips[1002];
-    });
+    })
+    
 });
 
 //查询文章列表
