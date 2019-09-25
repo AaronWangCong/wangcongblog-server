@@ -200,8 +200,11 @@ router.post('/oa/user/recognizeFile', async (ctx, next) => {
     
 });
 
+
+
+
 //添加修改一篇文章
-router.post('/oa/modifyDoc', async (ctx, next) => {
+router.post('/oa/user/modifyDoc', async (ctx, next) => {
     let data = Utils.filter(ctx.request.body, ['title', 'category', 'summary', 'content', 'mdContent', 'id']),
         {uid} = ctx.state  || {};
     let res = Utils.formatData(data, [
@@ -236,6 +239,22 @@ router.post('/oa/modifyDoc', async (ctx, next) => {
     
 });
 
+//删除文章
+router.post('/oa/user/removeDoc', async (ctx, next) => {
+    let data = Utils.filter(ctx.request.body, ['id']);
+    let res = Utils.formatData(data, [
+        {key: 'id', type: 'number'}
+    ]);
+    if (! res) return ctx.body = Tips[1007];
+    let {id} = data;
+    let sql = 'UPDATE t_article set is_delete=1 WHERE id=?', value = [id];
+    await db.query(sql, value).then(async res => {
+        ctx.body = Tips[0];
+    }).catch(e => {
+        ctx.body = Tips[1002];
+    });
+});
+
 //查询文章列表
 router.post('/oa/articleList', async (ctx, next) => {
     let data = Utils.filter(ctx.request.body, ['category'])
@@ -245,9 +264,9 @@ router.post('/oa/articleList', async (ctx, next) => {
     let sql = ``;
     let {category} = data;
     if (! res || ! category) {
-        sql = `SELECT * FROM t_article`;
+        sql = `SELECT * FROM t_article WHERE is_delete=0 ORDER BY create_time DESC`;
     } else {
-        sql = `SELECT * FROM t_article WHERE category=${JSON.stringify(category)}`;
+        sql = `SELECT * FROM t_article WHERE is_delete=0 AND category=${JSON.stringify(category)} ORDER BY create_time DESC`;
     }
     await db.query(sql).then(res => {
         if (res.length > 0) {
@@ -277,7 +296,7 @@ router.get('/oa/articleList/:id', async (ctx, next) => {
     if (! res) return ctx.body = Tips[1007];
     let {id} = data;
     id = parseInt(id);
-    let sql = `SELECT * FROM t_article WHERE id=${id}`;
+    let sql = `SELECT * FROM t_article WHERE is_delete=0 AND id=${id}`;
     await db.query(sql).then(res => {
         let detail = res[0] || [];
         if(detail){

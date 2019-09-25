@@ -13,7 +13,8 @@ router.post('/oa/login', async (ctx, next) => {
     ]);
     if (! res) return ctx.body = Tips[1007];
     let {username, password} = data;
-    let sql = 'SELECT uid FROM t_user WHERE username=? and password=? and is_delete=0', value = [username, md5(password)];
+    let sql = 'SELECT uid FROM t_user WHERE username=? and password=? and is_delete=0',
+        value = [username, md5(password)];
     await db.query(sql, value).then(res => {
         if (res && res.length > 0) {
             let val = res[0];
@@ -37,12 +38,22 @@ router.get('/oa/user/auth', async (ctx, next) => {
     let sql = 'SELECT username,uid,nick_name FROM t_user WHERE uid=? AND is_delete=0', value = [uid];
     await db.query(sql, value).then(res => {
         if (res && res.length > 0) {
-            ctx.body = {...Tips[0], data: res[0]};
+            ctx.body = {
+                ...Tips[0],
+                flag:true,
+                data: res[0]
+            };
         } else {
-            ctx.body = Tips[1005];
+            ctx.body = {
+                ...Tips[1005],
+                flag:false
+            };
         }
     }).catch(e => {
-        ctx.body = Tips[1005];
+        ctx.body = {
+            ...Tips[1005],
+            flag:false
+        };
     })
 });
 //退出登录
