@@ -268,6 +268,7 @@ router.post('/oa/articleList', async (ctx, next) => {
     } else {
         sql = `SELECT * FROM t_article WHERE is_delete=0 AND category=${JSON.stringify(category)} ORDER BY create_time DESC`;
     }
+    console.log(category, sql)
     await db.query(sql).then(res => {
         if (res.length > 0) {
             ctx.body = {

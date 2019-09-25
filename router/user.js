@@ -21,7 +21,9 @@ router.post('/oa/login', async (ctx, next) => {
             let uid = val['uid'];
             let token = Utils.generateToken({uid});
             ctx.body = {
-                ...Tips[0], data: {token}
+                ...Tips[0],
+                flag:true,
+                data: {token}
             }
         } else {
             ctx.body = Tips[1006];
