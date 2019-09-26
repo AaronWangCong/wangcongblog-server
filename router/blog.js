@@ -186,7 +186,8 @@ router.post('/oa/user/recognizeFile', async (ctx, next) => {
                 fs.unlinkSync(filePath);//清除
                 ctx.body = {
                     ...Tips[0],
-                    data: content
+                    flag: true,
+                    obj: content
                 }
             } catch (e) {
                 ctx.body = Tips[1008];
@@ -277,9 +278,7 @@ router.post('/oa/articleList', async (ctx, next) => {
         sql = `SELECT * FROM t_article WHERE is_delete=0 AND title LIKE "%${keywords}%" ORDER BY create_time DESC limit ${offset},${pageSize};`;
         sql1 = `SELECT count(1) FROM t_article WHERE is_delete=0 AND title LIKE "%${keywords}%" ORDER BY create_time DESC`;
     }
-    console.log(sql, sql1)
     await db.query(sql+sql1).then(async result => {
-        console.log(result)
         let res1 = result[0],res2 = result[1],total = 0,list = [];
         if(res1 && res1.length >0 && res2 && res2.length >0){
             total = res2[0]['count(1)'];
