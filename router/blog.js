@@ -4,6 +4,7 @@ const Tips = require('../utils/tip');
 const db = require('../db/index');
 const fs = require('fs');
 const asyncBusboy = require('async-busboy');
+const path = require('path');
 //创建一篇博客，必须登录
 router.post('/oa/user/addBlog', async (ctx, next) => {
     let data = Utils.filter(ctx.request.body, ['title', 'content', 'submit', 'category', 'create_time'])
@@ -309,6 +310,40 @@ router.get('/oa/articleList/:id', async (ctx, next) => {
     }).catch(e => {
         ctx.body = Tips[1002];
     })
+});
+
+//博客中的图片
+router.post('/oa/user/upimgFiles', async (ctx, next) => {
+    try {
+        let data = await asyncBusboy(ctx.req)
+        let { files = [] } = data;
+        if(files.length === 0) return ctx.body = Tips[1002];
+        let file = files[0];
+        let { mimeType = '', filename, path: filepath } = file;
+        if(mimeType.indexOf('image') === -1) return ctx.body = Tips[1002];
+        let name = Date.now() + '.' + filename.split('.').pop();
+        
+        // 创建可读流
+        const reader = fs.createReadStream(file['path']);
+        
+        let savePath = path.join(__dirname, `../../media/blog/${name}`);
+        let remotefilePath = `http://media.wangcong.wang/blog/` + `${name}`;
+        // 创建可写流
+        const upStream = fs.createWriteStream(savePath);
+        // 可读流通过管道写入可写流
+        reader.pipe(upStream);
+        try {
+            return ctx.body = {
+                ...Tips[0],
+                flag: true,
+                data: { remotefilePath }
+            }
+        } catch (e) {
+            ctx.body = Tips[1005];
+        }
+    } catch (e) {
+        ctx.body = Tips[1002];
+    }
 });
 
 module.exports = router;

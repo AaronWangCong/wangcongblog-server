@@ -86,40 +86,41 @@ router.get('/oa/user/myImg', async (ctx, next) => {
 
 
 // 上传图片
-router.post('/oa/user/upimgFiles', async (ctx, next) => {
-    try {
-        let data = await asyncBusboy(ctx.req)
-        let { files = [] } = data;
-        if(files.length === 0) return ctx.body = Tips[1002];
-        let file = files[0];
-        let { mimeType = '', filename, path: filepath } = file;
-        if(mimeType.indexOf('image') === -1) return ctx.body = Tips[1002];
-        let name = Date.now() + '.' + filename.split('.').pop();
-        let savePath = path.join(__dirname, `../../media/blog/${name}`);
-        try {
-            let create_time = Utils.formatCurrentTime();
-            let sql = 'INSERT INTO t_img(name,create_time) VALUES (?,?)', value = [name, create_time];
-            await db.query(sql, value).then(res => {
-                let img = fs.readFileSync(filepath);
-                fs.writeFileSync(savePath, img);
-                fs.unlinkSync(filepath);//清除缓存文件
-                let url = 'http://media.wangcong.wang/blog/' + name
-                ctx.body = {
-                    ...Tips[0],
-                    flag: true,
-                    data: { url }
-                };
-            }).catch(() => {
-                ctx.body = Tips[1002];
-            })
+// router.post('/oa/user/upimgFiles', async (ctx, next) => {
+//     try {
+//         let data = await asyncBusboy(ctx.req)
+//         console.log(data)
+//         let { files = [] } = data;
+//         if(files.length === 0) return ctx.body = Tips[1002];
+//         let file = files[0];
+//         let { mimeType = '', filename, path: filepath } = file;
+//         if(mimeType.indexOf('image') === -1) return ctx.body = Tips[1002];
+//         let name = Date.now() + '.' + filename.split('.').pop();
+//         let savePath = path.join(__dirname, `../../media/blog/${name}`);
+//         try {
+//             let create_time = Utils.formatCurrentTime();
+//             let sql = 'INSERT INTO t_img(name,create_time) VALUES (?,?)', value = [name, create_time];
+//             await db.query(sql, value).then(res => {
+//                 let img = fs.readFileSync(filepath);
+//                 fs.writeFileSync(savePath, img);
+//                 fs.unlinkSync(filepath);//清除缓存文件
+//                 let url = 'http://media.wangcong.wang/blog/' + name
+//                 ctx.body = {
+//                     ...Tips[0],
+//                     flag: true,
+//                     data: { url }
+//                 };
+//             }).catch(() => {
+//                 ctx.body = Tips[1002];
+//             })
             
-        } catch (e) {
-            ctx.body = Tips[1005];
-        }
-    } catch (e) {
-        ctx.body = Tips[1002];
-    }
-});
+//         } catch (e) {
+//             ctx.body = Tips[1005];
+//         }
+//     } catch (e) {
+//         ctx.body = Tips[1002];
+//     }
+// });
 
 
 module.exports = router;

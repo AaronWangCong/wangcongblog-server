@@ -34,7 +34,6 @@ app.use(async(ctx, next) => {
     }else{
         await next();
     }
-    
 });
 app.use(errorHandler());
 app.use(bodyParser());
