@@ -202,8 +202,6 @@ router.post('/oa/user/recognizeFile', async (ctx, next) => {
 });
 
 
-
-
 //添加修改一篇文章
 router.post('/oa/user/modifyDoc', async (ctx, next) => {
     let data = Utils.filter(ctx.request.body, ['title', 'category', 'summary', 'content', 'mdContent', 'id']),
@@ -258,25 +256,63 @@ router.post('/oa/user/removeDoc', async (ctx, next) => {
 
 //查询文章列表
 router.post('/oa/articleList', async (ctx, next) => {
-    let data = Utils.filter(ctx.request.body, ['category'])
+    let data = Utils.filter(ctx.request.body, ['category', 'keywords','pagingDto'])
     let res = Utils.formatData(data, [
-        {key: 'category', type: 'string'}
+        {key: 'category', type: 'string'},
+        {key: 'keywords', type: 'string'},
+        {key: 'pagingDto', type: 'object'}
     ]);
-    let sql = ``;
-    let {category} = data;
-    if (! res || ! category) {
-        sql = `SELECT * FROM t_article WHERE is_delete=0 ORDER BY create_time DESC`;
-    } else {
-        sql = `SELECT * FROM t_article WHERE is_delete=0 AND category=${JSON.stringify(category)} ORDER BY create_time DESC`;
+    let sql = ``,
+        sql1 = ``;
+    let {category, keywords, pagingDto} = data;
+    let {pageNo, pageSize} = pagingDto;
+    let offset = (pageNo - 1) * pageSize;
+    if (! res || (! category && ! keywords)) {
+        sql = `SELECT * FROM t_article WHERE is_delete=0 ORDER BY create_time DESC limit ${offset},${pageSize};`;
+        sql1 = `SELECT count(1) FROM  t_article WHERE is_delete=0 ORDER BY create_time DESC`;
+    } else if (category && ! keywords) {
+        sql = `SELECT * FROM t_article WHERE is_delete=0 AND category=${JSON.stringify(category)} ORDER BY create_time DESC limit ${offset},${pageSize};`;
+        sql1 = `SELECT count(1) FROM  t_article WHERE is_delete=0 AND category=${JSON.stringify(category)} ORDER BY create_time DESC`;
+    } else if (! category && keywords) {
+        sql = `SELECT * FROM t_article WHERE is_delete=0 AND title LIKE "%${keywords}%" ORDER BY create_time DESC limit ${offset},${pageSize};`;
+        sql1 = `SELECT count(1) FROM  t_article WHERE is_delete=0 title LIKE "%${keywords}%" ORDER BY create_time DESC`;
     }
-    console.log(category, sql)
+    await db.query(sql+sql1).then(async result => {
+        let res1 = result[0],res2 = result[1],total = 0,list = [];
+        if(res1 && res1.length >0 && res2 && res2.length >0){
+            total = res2[0]['count(1)'];
+            list = res1;
+        }
+        ctx.body = {
+            ...Tips[0],
+            flag:true,
+            rows: list,
+            pageSize,
+            total
+        }
+    }).catch(() => {
+        ctx.body = Tips[1002];
+    })
+})
+
+//上一条 下一条
+router.get('/oa/articleListUpDown/:id', async (ctx, next) => {
+    let data = ctx.params;
+    let res = Utils.formatData(data, [
+        {key: 'id', type: 'number'}
+    ]);
+    if (! res) return ctx.body = Tips[1007];
+    let {id} = data;
+    id = parseInt(id);
+    let sql = `SELECT id,category,title FROM t_article WHERE id IN((SELECT id FROM t_article WHERE id<${id} ORDER BY id DESC LIMIT 1),(SELECT id FROM t_article WHERE id>${id} ORDER BY id LIMIT 1)) ORDER BY id`;
     await db.query(sql).then(res => {
-        if (res.length > 0) {
+        console.log(res)
+        if(res && res.length >0){
             ctx.body = {
                 ...Tips[0],
                 flag:true,
                 rows: res
-            };
+            }
         } else {
             ctx.body = {
                 ...Tips[1003],
@@ -312,7 +348,7 @@ router.get('/oa/articleList/:id', async (ctx, next) => {
     })
 });
 
-//博客中的图片
+//文章中的图片
 router.post('/oa/user/upimgFiles', async (ctx, next) => {
     try {
         let data = await asyncBusboy(ctx.req)
