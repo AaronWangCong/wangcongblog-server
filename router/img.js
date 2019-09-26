@@ -95,7 +95,7 @@ router.post('/oa/user/upimgFiles', async (ctx, next) => {
         let { mimeType = '', filename, path: filepath } = file;
         if(mimeType.indexOf('image') === -1) return ctx.body = Tips[1002];
         let name = Date.now() + '.' + filename.split('.').pop();
-        let savePath = path.join(__dirname, `../../img/${name}`);
+        let savePath = path.join(__dirname, `../../media/blog/${name}`);
         try {
             let create_time = Utils.formatCurrentTime();
             let sql = 'INSERT INTO t_img(name,create_time) VALUES (?,?)', value = [name, create_time];
@@ -103,10 +103,11 @@ router.post('/oa/user/upimgFiles', async (ctx, next) => {
                 let img = fs.readFileSync(filepath);
                 fs.writeFileSync(savePath, img);
                 fs.unlinkSync(filepath);//清除缓存文件
+                let url = 'http://media.wangcong.wang/blog/' + name
                 ctx.body = {
                     ...Tips[0],
                     flag: true,
-                    data: { name }
+                    data: { url }
                 };
             }).catch(() => {
                 ctx.body = Tips[1002];
