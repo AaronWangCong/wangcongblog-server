@@ -275,9 +275,11 @@ router.post('/oa/articleList', async (ctx, next) => {
         sql1 = `SELECT count(1) FROM  t_article WHERE is_delete=0 AND category=${JSON.stringify(category)} ORDER BY create_time DESC`;
     } else if (! category && keywords) {
         sql = `SELECT * FROM t_article WHERE is_delete=0 AND title LIKE "%${keywords}%" ORDER BY create_time DESC limit ${offset},${pageSize};`;
-        sql1 = `SELECT count(1) FROM  t_article WHERE is_delete=0 title LIKE "%${keywords}%" ORDER BY create_time DESC`;
+        sql1 = `SELECT count(1) FROM t_article WHERE is_delete=0 AND title LIKE "%${keywords}%" ORDER BY create_time DESC`;
     }
+    console.log(sql, sql1)
     await db.query(sql+sql1).then(async result => {
+        console.log(result)
         let res1 = result[0],res2 = result[1],total = 0,list = [];
         if(res1 && res1.length >0 && res2 && res2.length >0){
             total = res2[0]['count(1)'];
