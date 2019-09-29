@@ -307,7 +307,6 @@ router.get('/oa/articleListUpDown/:id', async (ctx, next) => {
     id = parseInt(id);
     let sql = `SELECT id,category,title FROM t_article WHERE id IN((SELECT id FROM t_article WHERE id<${id} ORDER BY id DESC LIMIT 1),(SELECT id FROM t_article WHERE id>${id} ORDER BY id LIMIT 1)) ORDER BY id`;
     await db.query(sql).then(res => {
-        console.log(res)
         if(res && res.length >0){
             ctx.body = {
                 ...Tips[0],
@@ -365,6 +364,40 @@ router.post('/oa/user/upimgFiles', async (ctx, next) => {
         
         let savePath = path.join(__dirname, `../../media/blog/${name}`);
         let remotefilePath = `http://media.wangcong.wang/blog/` + `${name}`;
+        // 创建可写流
+        const upStream = fs.createWriteStream(savePath);
+        // 可读流通过管道写入可写流
+        reader.pipe(upStream);
+        try {
+            return ctx.body = {
+                ...Tips[0],
+                flag: true,
+                data: { remotefilePath }
+            }
+        } catch (e) {
+            ctx.body = Tips[1005];
+        }
+    } catch (e) {
+        ctx.body = Tips[1002];
+    }
+});
+
+//文章图片
+router.post('/oa/user/articleUpimgFiles', async (ctx, next) => {
+    try {
+        let data = await asyncBusboy(ctx.req)
+        let { files = [] } = data;
+        if(files.length === 0) return ctx.body = Tips[1002];
+        let file = files[0];
+        let { mimeType = '', filename, path: filepath } = file;
+        if(mimeType.indexOf('image') === -1) return ctx.body = Tips[1002];
+        let name = Date.now() + '.' + filename.split('.').pop();
+        
+        // 创建可读流
+        const reader = fs.createReadStream(file['path']);
+        
+        let savePath = path.join(__dirname, `../../media/article/${name}`);
+        let remotefilePath = `http://media.wangcong.wang/article/` + `${name}`;
         // 创建可写流
         const upStream = fs.createWriteStream(savePath);
         // 可读流通过管道写入可写流

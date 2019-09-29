@@ -27,20 +27,19 @@ router.post('/oa/messegsAdd',async (ctx,next)=>{
     })
 });
 
-//查询所有弹幕
-router.get('/oa/messegsAll', async (ctx, next) => {
+//查询所有消息
+router.get('/oa/noticeMessige', async (ctx, next) => {
     await db.query('SELECT * FROM t_msg').then(res => {
         if (res.length > 0) {
             ctx.body = {
                 ...Tips[0],
+                flag: true,
                 rows: res
             };
         } else {
-            console.log(res)
             ctx.body = Tips[1003];
         }
     }).catch(() => {
-        console.log('1002',res)
         ctx.body = Tips[1002];
     })
 })
