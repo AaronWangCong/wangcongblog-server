@@ -7,18 +7,20 @@ const asyncBusboy = require('async-busboy');
 const path = require('path');
 //创建一篇博客，必须登录
 router.post('/oa/user/addBlog', async (ctx, next) => {
-    let data = Utils.filter(ctx.request.body, ['title', 'content', 'submit', 'category', 'create_time'])
+    let data = Utils.filter(ctx.request.body, ['title', 'content', 'submit', 'category', 'create_time', 'author', 'uid'])
     let res = Utils.formatData(data, [
         {key: 'title', type: 'string'},
         {key: 'content', type: 'string'},
         {key: 'submit', type: 'string'},
-        {key: 'category', type: 'string'}
+        {key: 'category', type: 'string'},
+        {key: 'author', type: 'string'},
+        {key: 'uid', type: 'number'}
     ]);
     if (! res) return ctx.body = Tips[1007];
-    let {title = '无标题', content = '', category = '', submit = '', create_time = ''} = data;
+    let {title = '无标题', content = '', category = '', submit = '', create_time = '', author = '', uid = ''} = data;
     create_time = Utils.formatCurrentTime(create_time);
-    let sql = `INSERT INTO t_article(title,content,submit,create_time,category) VALUES (?,?,?,?,?)`,
-        value = [title, content, submit, create_time, category];
+    let sql = `INSERT INTO t_article(title,content,submit,create_time,category, author, uid) VALUES (?,?,?,?,?,?,?)`,
+        value = [title, content, submit, create_time, category, author, uid];
     await db.query(sql, value).then(async res => {
         ctx.body = {
             ...Tips[0],
@@ -173,6 +175,9 @@ router.get('/oa/blog/:id', async (ctx, next) => {
     })
 });
 
+
+
+
 //识别md文件
 router.post('/oa/user/recognizeFile', async (ctx, next) => {
     try {
@@ -198,18 +203,16 @@ router.post('/oa/user/recognizeFile', async (ctx, next) => {
     } catch (e) {
         ctx.body = Tips[1008];
     }
-    
-    
 });
-
-
 //添加修改一篇文章
 router.post('/oa/user/modifyDoc', async (ctx, next) => {
-    let data = Utils.filter(ctx.request.body, ['title', 'category', 'summary', 'content', 'imgUrl', 'mdContent', 'id']),
+    let data = Utils.filter(ctx.request.body, ['title', 'category', 'category_id', 'random_color', 'summary', 'content', 'imgUrl', 'mdContent', 'id']),
         {uid} = ctx.state  || {};
     let res = Utils.formatData(data, [
         {key: 'title', type: 'string'},
         {key: 'category', type: 'string'},
+        {key: 'category_id', type: 'number'},
+        {key: 'random_color', type: 'string'},
         {key: 'summary', type: 'string'},
         {key: 'content', type: 'string'},
         {key: 'imgUrl', type: 'string'},
@@ -217,18 +220,17 @@ router.post('/oa/user/modifyDoc', async (ctx, next) => {
         {key: 'id', type: 'number'}
     ]);
     if (! res) return ctx.body = Tips[1007];
-    let {title, category, summary, content, imgUrl, mdContent, id, create_time = ''} = data;
+    let {title, category, category_id, random_color, summary, content, imgUrl, mdContent, id, create_time = ''} = data;
     create_time = Utils.formatCurrentTime(create_time);
     let sql = ``,
         value = []
     if (id) {
-        sql = `UPDATE t_article set title=?,category=?,summary=?,content=?,imgUrl=?,mdContent=?,create_time=? WHERE id=?;`;
-        value = [title, category, summary, content, imgUrl, mdContent, create_time, id];
+        sql = `UPDATE t_article set title=?,category=?,category_id=?,random_color=?,summary=?,content=?,imgUrl=?,mdContent=?,create_time=? WHERE id=?;`;
+        value = [title, category, category_id, random_color, summary, content, imgUrl, mdContent, create_time, id];
     } else {
-        sql = `INSERT INTO t_article(title,category,summary,content,imgUrl,mdContent,create_time) VALUES (?,?,?,?,?,?,?)`;
-        value = [title, category, summary, content, imgUrl, mdContent, create_time];
+        sql = `INSERT INTO t_article(title,category,category_id,random_color,summary,content,imgUrl,mdContent,create_time) VALUES (?,?,?,?,?,?,?,?,?)`;
+        value = [title, category, category_id, random_color, summary, content, imgUrl, mdContent, create_time];
     }
-        
     await db.query(sql, value).then(async res => {
         ctx.body = {
             ...Tips[0],
@@ -306,7 +308,7 @@ router.get('/oa/articleListUpDown/:id', async (ctx, next) => {
     if (! res) return ctx.body = Tips[1007];
     let {id} = data;
     id = parseInt(id);
-    let sql = `SELECT id,category,title FROM t_article WHERE id IN((SELECT id FROM t_article WHERE id<${id} ORDER BY id DESC LIMIT 1),(SELECT id FROM t_article WHERE id>${id} ORDER BY id LIMIT 1)) ORDER BY id`;
+    let sql = `SELECT id,category,title FROM t_article WHERE is_delete=0 AND id IN((SELECT id FROM t_article WHERE id<${id} ORDER BY id DESC LIMIT 1),(SELECT id FROM t_article WHERE is_delete=0 AND id>${id} ORDER BY id LIMIT 1)) ORDER BY id`;
     await db.query(sql).then(res => {
         if(res && res.length >0){
             ctx.body = {
@@ -363,18 +365,27 @@ router.post('/oa/user/upimgFiles', async (ctx, next) => {
         // 创建可读流
         const reader = fs.createReadStream(file['path']);
         
-        let savePath = path.join(__dirname, `../../media/blog/${name}`);
-        let remotefilePath = `http://media.wangcong.wang/blog/` + `${name}`;
+        let savePath = path.join(__dirname, `../../media/articleImg/${name}`);
+        let remotefilePath = `http://media.wangcong.wang/articleImg/` + `${name}`;
         // 创建可写流
         const upStream = fs.createWriteStream(savePath);
         // 可读流通过管道写入可写流
         reader.pipe(upStream);
+        let imgurl = remotefilePath
+        let create_time = ''
+        create_time = Utils.formatCurrentTime(create_time);
+        let sql = `INSERT INTO t_articleImg(imgurl,create_time) VALUES (?,?)`
+        let value = [imgurl, create_time]
         try {
-            return ctx.body = {
-                ...Tips[0],
-                flag: true,
-                data: { remotefilePath }
-            }
+            await db.query(sql, value).then(async res => {
+                ctx.body = {
+                    ...Tips[0],
+                    flag: true,
+                    data: { remotefilePath }
+                }
+            }).catch(e => {
+                ctx.body = Tips[1002];
+            });
         } catch (e) {
             ctx.body = Tips[1005];
         }
@@ -383,7 +394,7 @@ router.post('/oa/user/upimgFiles', async (ctx, next) => {
     }
 });
 
-//文章图片
+//文章封面
 router.post('/oa/user/articleUpimgFiles', async (ctx, next) => {
     try {
         let data = await asyncBusboy(ctx.req)
@@ -397,18 +408,27 @@ router.post('/oa/user/articleUpimgFiles', async (ctx, next) => {
         // 创建可读流
         const reader = fs.createReadStream(file['path']);
         
-        let savePath = path.join(__dirname, `../../media/article/${name}`);
-        let remotefilePath = `http://media.wangcong.wang/article/` + `${name}`;
+        let savePath = path.join(__dirname, `../../media/articleLogo/${name}`);
+        let remotefilePath = `http://media.wangcong.wang/articleLogo/` + `${name}`;
         // 创建可写流
         const upStream = fs.createWriteStream(savePath);
         // 可读流通过管道写入可写流
-        reader.pipe(upStream);
+        reader.pipe(upStream)
+        let imgurl = remotefilePath
+        let create_time = ''
+        create_time = Utils.formatCurrentTime(create_time);
+        let sql = `INSERT INTO t_articleLogo(imgurl,create_time) VALUES (?,?)`
+        let value = [imgurl, create_time]
         try {
-            return ctx.body = {
-                ...Tips[0],
-                flag: true,
-                data: { remotefilePath }
-            }
+            await db.query(sql, value).then(async res => {
+                ctx.body = {
+                    ...Tips[0],
+                    flag: true,
+                    data: { remotefilePath }
+                }
+            }).catch(e => {
+                ctx.body = Tips[1002];
+            });
         } catch (e) {
             ctx.body = Tips[1005];
         }
@@ -417,4 +437,83 @@ router.post('/oa/user/articleUpimgFiles', async (ctx, next) => {
     }
 });
 
-module.exports = router;
+//添加修改分类
+router.post('/oa/user/modifyCategory', async (ctx, next) => {
+    let data = Utils.filter(ctx.request.body, ['category_name', 'category_id'])
+    let res = Utils.formatData(data, [
+        {key: 'category_name', type: 'string'},
+        {key: 'category_id', type: 'number'}
+    ]);
+    if (! res) return ctx.body = Tips[1007];
+    let {category_name, category_id, create_time = '', random_color = ''} = data;
+    create_time = Utils.formatCurrentTime(create_time);
+    random_color = Utils.randomColor(random_color);
+    let sql = ``,
+        value = []
+    if (category_id) {
+        sql = `UPDATE t_category set category_name=?,create_time=? WHERE category_id=?;`;
+        value = [category_name, create_time, category_id];
+    } else {
+        sql = `INSERT INTO t_category(category_name,create_time,random_color) VALUES (?,?,?)`;
+        value = [category_name, create_time, random_color];
+    }
+        
+    await db.query(sql, value).then(async res => {
+        ctx.body = {
+            ...Tips[0],
+            flag:true
+        }
+    }).catch(e => {
+        ctx.body = Tips[1002];
+    })
+    
+});
+
+//查询分类
+router.get('/oa/category', async (ctx, next) => {
+    await db.query('SELECT * FROM t_category').then(res => {
+        if (res.length > 0) {
+            ctx.body = {
+                ...Tips[0],
+                flag: true,
+                rows: res
+            };
+        } else {
+            ctx.body = Tips[1003];
+        }
+    }).catch(() => {
+        ctx.body = Tips[1002];
+    })
+})
+
+//查询文章封面图片及详情图
+router.post('/oa/articleImg', async (ctx, next) => {
+    let data = Utils.filter(ctx.request.body, ['imgtype','pagingDto'])
+    let res = Utils.formatData(data, [
+        {key: 'imgtype', type: 'string'},
+        {key: 'pagingDto', type: 'object'}
+    ]);
+    if (! res) return ctx.body = Tips[1007];
+    let {imgtype, pagingDto} = data;
+    let {pageNo, pageSize} = pagingDto;
+    let offset = (pageNo - 1) * pageSize;
+    let sql = ``
+    if (imgtype && imgtype === 'logo') {
+        sql = `SELECT * FROM t_articleLogo WHERE is_delete=0 ORDER BY create_time DESC limit ${offset},${pageSize};`
+    } else {
+        sql = `SELECT * FROM t_articleImg WHERE is_delete=0 ORDER BY create_time DESC limit ${offset},${pageSize};`
+    }
+    await db.query(sql).then(res => {
+        if (res.length > 0) {
+            ctx.body = {
+                ...Tips[0],
+                flag: true,
+                rows: res
+            };
+        } else {
+            ctx.body = Tips[1003];
+        }
+    }).catch(() => {
+        ctx.body = Tips[1002];
+    })
+})
