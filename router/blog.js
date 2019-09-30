@@ -517,3 +517,5 @@ router.post('/oa/articleImg', async (ctx, next) => {
         ctx.body = Tips[1002];
     })
 })
+
+module.exports = router;
